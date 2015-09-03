@@ -62,8 +62,9 @@ public class Main {
 			logger.info("Using default harvester");
 			break;
 		}
+		logger.info("Starting harvesting");
 		harvester.harvest(pathToSave, 30);
 		harvester.finish();
-
+		logger.info("Harvesting completed");
 	}
 }

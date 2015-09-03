@@ -3,7 +3,7 @@
 <log4j:configuration debug="true" xmlns:log4j='http://jakarta.apache.org/log4j/'>
 
 	<appender name="file" class="org.apache.log4j.RollingFileAppender">
-		<param name="append" value="true" />
+		<param name="append" value="false" />
 		<param name="maxFileSize" value="1024KB" />
 		<param name="maxBackupIndex" value="5" />
 		<param name="file" value="log.txt" />
@@ -19,15 +19,9 @@
 	</appender>
 
 	<root>
-		<level value="error" />
+		<level value="INFO" />
 		<appender-ref ref="file" />
 		<appender-ref ref="console" />
 	</root>
-
-	<logger name="harvester.app">
-		<level value="debug" />
-		<appender-ref ref="file" />
-		<appender-ref ref="console" />
-	</logger>
 
 </log4j:configuration>

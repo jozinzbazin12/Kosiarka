@@ -13,16 +13,13 @@ public class _4Chan extends Harvester {
 
 	@Override
 	public void harvest(String pathToSave, int limit) {
-		List<WebElement> elements = driver.findElements(By.xpath("//a[@class='fileThumb']/img"));
+		List<WebElement> elements = driver.findElements(By.xpath("//a[@class='fileThumb']"));
 		int pos = 0;
 		for (WebElement i : elements) {
 			if (pos > limit) {
 				break;
 			}
-			String src = i.getAttribute(SRC);
-			int index = src.lastIndexOf(".") - 1;
-			src = src.substring(0, index) + src.substring(index + 1);
-			createSaveThread(src, pathToSave);
+			createSaveThread(i.getAttribute("href"), pathToSave);
 			pos++;
 		}
 	}

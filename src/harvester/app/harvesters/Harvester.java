@@ -12,11 +12,11 @@ import java.net.URLConnection;
 import java.text.MessageFormat;
 import java.util.zip.GZIPInputStream;
 
+import org.apache.log4j.Logger;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.firefox.FirefoxBinary;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxProfile;
-import org.testng.log4testng.Logger;
 
 public abstract class Harvester {
 
@@ -34,7 +34,7 @@ public abstract class Harvester {
 
 	protected String url;
 
-	private static final Logger logger = Logger.getLogger(Harvester.class);
+	protected static final Logger logger = Logger.getLogger(Harvester.class);
 
 	protected WebDriver driver;
 
@@ -57,7 +57,7 @@ public abstract class Harvester {
 		URL url;
 		InputStream is = null;
 		OutputStream os = null;
-		String file = null;
+		File file = null;
 		logger.info("Downloading: " + fileUrl);
 		try {
 			File destination = new File(path);
@@ -73,11 +73,14 @@ public abstract class Harvester {
 			String destinationFile = getFileName(fileUrl, con.getHeaderField(CONTENT_DISPOSITION));
 			logger.info("Saving file: " + destinationFile);
 			if ("gzip".equals(con.getContentEncoding())) {
-				is = new GZIPInputStream(is);
+				is = new GZIPInputStream(con.getInputStream());
 			} else {
 				is = con.getInputStream();
 			}
-			file = destination.getAbsolutePath() + File.separator + destinationFile;
+			file = new File(destination.getAbsolutePath() + File.separator + destinationFile);
+			if (file.exists()) {
+				logger.info(MessageFormat.format("File [{0}] already exists.", file.getAbsolutePath()));
+			}
 			os = new FileOutputStream(file);
 
 			byte[] b = new byte[10000];
@@ -137,6 +140,5 @@ public abstract class Harvester {
 
 	public void finish() {
 		driver.close();
-		logger.info("Harvesting completed");
 	}
 }
