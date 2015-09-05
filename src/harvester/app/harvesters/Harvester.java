@@ -6,10 +6,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.Authenticator;
 import java.net.MalformedURLException;
+import java.net.PasswordAuthentication;
 import java.net.URL;
 import java.net.URLConnection;
 import java.text.MessageFormat;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.log4j.Logger;
@@ -18,9 +21,13 @@ import org.openqa.selenium.firefox.FirefoxBinary;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxProfile;
 
+import harvester.app.Argument;
+
 public abstract class Harvester {
 
 	protected static final String SRC = "src";
+	
+	protected static final String HREF = "href";
 
 	private static final String CONTENT_DISPOSITION = "Content-Disposition";
 
@@ -38,7 +45,9 @@ public abstract class Harvester {
 
 	protected WebDriver driver;
 
-	public abstract void harvest(String pathToSave, int limit);
+	public abstract void harvest(String pathToSave, Map<Argument, String> args);
+
+	protected abstract boolean stopWhen();
 
 	protected String getFileName(String url, String raw) {
 		if (raw != null && raw.indexOf("=") != -1) {
@@ -138,7 +147,24 @@ public abstract class Harvester {
 		driver.get(url);
 	}
 
+	public Harvester(String url, final String login, final String password) {
+		this(url);
+
+		Authenticator.setDefault(new Authenticator() {
+			protected PasswordAuthentication getPasswordAuthentication() {
+				return new PasswordAuthentication(login, password.toCharArray());
+			}
+		});
+	}
+
 	public void finish() {
+		while (threads != 0) {
+			try {
+				Thread.sleep(5);
+			} catch (InterruptedException e) {
+				logger.error("Could not sleep thread");
+			}
+		}
 		driver.close();
 	}
 }

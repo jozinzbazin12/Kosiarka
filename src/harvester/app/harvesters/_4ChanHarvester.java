@@ -8,21 +8,21 @@ import org.openqa.selenium.WebElement;
 
 import harvester.app.Argument;
 
-public class DefaultHarvester extends CountLimitedHarvester {
+public class _4ChanHarvester extends CountLimitedHarvester {
 
-	public DefaultHarvester(String url) {
+	public _4ChanHarvester(String url) {
 		super(url);
 	}
 
 	@Override
-	public void harvest(String path, Map<Argument, String> args) {
-		List<WebElement> elements = driver.findElements(By.xpath("//img"));
+	public void harvest(String pathToSave, Map<Argument, String> args) {
+		List<WebElement> elements = driver.findElements(By.xpath("//a[@class='fileThumb']"));
 		setLimit(args.get(Argument.LIMIT));
 		for (WebElement i : elements) {
 			if (stopWhen()) {
 				break;
 			}
-			createSaveThread(i.getAttribute(SRC), path);
+			createSaveThread(i.getAttribute("href"), pathToSave);
 			pos++;
 		}
 	}

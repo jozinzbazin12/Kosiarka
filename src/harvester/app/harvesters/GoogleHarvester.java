@@ -2,24 +2,28 @@ package harvester.app.harvesters;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 
-public class GoogleHarvester extends Harvester {
+import harvester.app.Argument;
+
+public class GoogleHarvester extends CountLimitedHarvester {
 
 	public GoogleHarvester(String url) {
 		super(url);
 	}
 
 	@Override
-	public void harvest(String path, int limit) {
+	public void harvest(String path, Map<Argument, String> args) {
 		List<WebElement> elements = driver.findElements(By.className("rg_l"));
 		List<WebElement> elems;
 		List<String> set = new ArrayList<>();
-		int pos = 0;
+		setLimit(args.get(Argument.LIMIT));
+
 		for (WebElement i : elements) {
-			if (pos > limit) {
+			if (stopWhen()) {
 				break;
 			}
 			i.click();
