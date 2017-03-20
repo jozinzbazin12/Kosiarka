@@ -54,6 +54,8 @@ public abstract class Harvester {
 
 	protected String url;
 
+	protected boolean logged;
+
 	public Harvester(Map<Argument, String> argumentMap) {
 		this.url = argumentMap.get(Argument.ITEM);
 		String browser = argumentMap.get(Argument.BROWSER);
@@ -66,6 +68,7 @@ public abstract class Harvester {
 			driver.get(url);
 			try {
 				restoreSession();
+				logged = true;
 			} catch (IOException | ClassNotFoundException e) {
 				logger.debug(e);
 				logger.error("Error while loading stored session");

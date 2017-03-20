@@ -35,6 +35,10 @@ public class Main {
 			displayHelp();
 			return;
 		}
+		if (argumentMap.containsKey(Argument.HELP)) {
+			displayHelp();
+			return;
+		}
 		Properties settings = loadProps(SETTINGS_FILE);
 		applySettings(settings, argumentMap);
 		Properties itemsProperties = loadProps(ITEMS_FILE);

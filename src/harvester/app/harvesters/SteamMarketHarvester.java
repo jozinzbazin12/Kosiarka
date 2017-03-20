@@ -149,6 +149,10 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 
 	@Override
 	public void buy(Map<Argument, String> args) throws InterruptedException {
+		if (!logged) {
+			logger.error("You must be logged in to buy!");
+			return;
+		}
 		setLimit(args.get(Argument.LIMIT));
 		setWait(args.get(Argument.WAIT));
 		String id = args.get(Argument.BUY);

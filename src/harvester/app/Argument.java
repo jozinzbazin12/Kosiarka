@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public enum Argument {
-	HELP("help"),
+	HELP("help", true),
 	BUY("buy"),
 	ITEM("item"),
 	PATH("path"),
