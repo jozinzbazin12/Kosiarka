@@ -46,13 +46,15 @@ public class Main {
 			if (argumentMap.containsKey(Argument.LOGIN)) {
 				harvester.login();
 			}
-			if (argumentMap.containsKey(Argument.ITEM)) {
+			if (argumentMap.containsKey(Argument.BUY)) {
+				harvester.buy(argumentMap);
+			} else if (argumentMap.containsKey(Argument.ITEM)) {
 				logger.info("Starting harvesting");
 				harvester.harvest(argumentMap);
 			}
 		} finally {
 			harvester.finish();
-			logger.info("Harvesting completed");
+			logger.info("Completed");
 		}
 	}
 

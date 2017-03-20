@@ -27,51 +27,6 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 		super(argumentMap);
 	}
 
-	@Override
-	public void harvest(Map<Argument, String> args) throws InterruptedException {
-		setLimit(args.get(Argument.LIMIT));
-		setWait(args.get(Argument.WAIT));
-		String pathToSave = args.get(Argument.PATH);
-		List<String> items = new ArrayList<>();
-		List<String> ids = new ArrayList<>();
-
-		while (!stopWhen()) {
-			collectItemsOnPage(items, ids);
-			Thread.sleep(wait);
-			driver.findElement(
-					By.xpath("//span[@id='searchResults_links']/span[@class='market_paging_pagelink active']/following::*"))
-					.click();
-		}
-		logger.info(items);
-		driver.get("https://metjm.net/csgo/");
-		for (String url : items) {
-			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/input")).sendKeys(url);
-			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/div")).click();
-		}
-		while (driver.findElements(By.className("openImageButton")).size() - 1 != items.size()) {
-			try {
-				logger.info("Waitig 1s for metjm...");
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		List<WebElement> findElements = driver.findElements(By.className("openImageButton"));
-		int id = ids.size() - 1;
-		long time = System.currentTimeMillis();
-		for (WebElement i : findElements) {
-			String attribute = i.getAttribute("style");
-			if (attribute == null || attribute.equals("")) {
-				break;
-			}
-			int urlpos = attribute.indexOf("url(\"");
-			int endurlpos = attribute.indexOf("\");");
-			String url = attribute.substring(urlpos + 5, endurlpos);
-			url = url.replace("_t.jpg", ".jpg");
-			createSaveThread(url, pathToSave + "/" + time, ids.get(id--) + ".jpg");
-		}
-	}
-
 	@SuppressWarnings("deprecation")
 	private void collectItemsOnPage(List<String> items, List<String> ids) {
 		List<WebElement> elements = driver.findElements(By.className("market_listing_row"));
@@ -101,6 +56,65 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 		}
 	}
 
+	private WebElement searchItem(String itemId) {
+		try {
+			this.pos += 10;
+			return driver.findElement(
+					By.xpath(String.format(".//div[@class='market_listing_buy_button']/a[contains(@href,'%s')]", itemId)));
+		} catch (Exception e) {
+			logger.error(e);
+		}
+		return null;
+	}
+
+	@Override
+	public void harvest(Map<Argument, String> args) throws InterruptedException {
+		setLimit(args.get(Argument.LIMIT));
+		setWait(args.get(Argument.WAIT));
+		String pathToSave = args.get(Argument.PATH);
+		List<String> items = new ArrayList<>();
+		List<String> ids = new ArrayList<>();
+
+		while (!stopWhen()) {
+			collectItemsOnPage(items, ids);
+			Thread.sleep(wait);
+			nextPage();
+		}
+		logger.info(items);
+		driver.get("https://metjm.net/csgo/");
+		for (String url : items) {
+			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/input")).sendKeys(url);
+			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/div")).click();
+		}
+		while (driver.findElements(By.className("openImageButton")).size() - 1 != items.size()) {
+			try {
+				logger.info("Waitig 1s for metjm...");
+				Thread.sleep(wait);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		List<WebElement> findElements = driver.findElements(By.className("openImageButton"));
+		int id = ids.size() - 1;
+		long time = System.currentTimeMillis();
+		for (WebElement i : findElements) {
+			String attribute = i.getAttribute(STYLE);
+			if (attribute == null || attribute.equals("")) {
+				break;
+			}
+			int urlpos = attribute.indexOf("url(\"");
+			int endurlpos = attribute.indexOf("\");");
+			String url = attribute.substring(urlpos + 5, endurlpos);
+			url = url.replace("_t.jpg", ".jpg");
+			createSaveThread(url, pathToSave + "/" + time, ids.get(id--) + ".jpg");
+		}
+	}
+
+	private void nextPage() {
+		driver.findElement(
+				By.xpath("//span[@id='searchResults_links']/span[@class='market_paging_pagelink active']/following::*")).click();
+	}
+
 	@Override
 	public void login() throws FileNotFoundException, IOException {
 		driver.get("https://steamcommunity.com/login/home/?goto=market%2F");
@@ -123,9 +137,50 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 			cookies = (Set<Cookie>) is.readObject();
 		}
 		for (Cookie c : cookies) {
-			driver.manage().addCookie(c);
+			try {
+				driver.manage().addCookie(c);
+			} catch (Exception e) {
+				logger.error(e);
+			}
 		}
+		driver.navigate().refresh();
 		logger.info("Session loaded");
+	}
+
+	@Override
+	public void buy(Map<Argument, String> args) throws InterruptedException {
+		setLimit(args.get(Argument.LIMIT));
+		setWait(args.get(Argument.WAIT));
+		String id = args.get(Argument.BUY);
+		WebElement searchItem = null;
+		while (!stopWhen()) {
+			searchItem = searchItem(id);
+			if (searchItem != null) {
+				break;
+			}
+			Thread.sleep(wait);
+			nextPage();
+		}
+		if (searchItem == null) {
+			logger.error("Could not find specified item!");
+			return;
+		}
+		searchItem.click();
+		driver.findElement(By.id("market_buynow_dialog_accept_ssa")).click();
+		driver.findElement(By.id("market_buynow_dialog_purchase")).click();
+		for (int i = 0; i < 10; i++) {
+			try {
+				driver.findElement(By.id("market_buynow_dialog_close"));
+				logger.info("Item bought!");
+				break;
+			} catch (Exception e) {
+				logger.info("Waiting for buy response...");
+				Thread.sleep(wait);
+			}
+
+		}
+
+		Thread.sleep(wait);
 	}
 
 }

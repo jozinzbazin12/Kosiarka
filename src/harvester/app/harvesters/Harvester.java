@@ -30,31 +30,92 @@ import harvester.app.Argument;
 
 public abstract class Harvester {
 
-	private static final String FIREFOX = "firefox";
-
-	protected static final String SRC = "src";
-
-	protected static final String HREF = "href";
-
 	private static final String CONTENT_DISPOSITION = "Content-Disposition";
 
-	private static final String USER_AGENT = "User-Agent";
+	private static final String FIREFOX = "firefox";
 
 	private static final String HEADER = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0";
 
-	protected String url;
+	protected static final String HREF = "href";
 
 	protected static final Logger logger = Logger.getLogger(Harvester.class);
 
+	protected static final String SRC = "src";
+
+	protected static final String STYLE = "style";
+
+	private static final String USER_AGENT = "User-Agent";
+
 	protected WebDriver driver;
 
-	public abstract void harvest(Map<Argument, String> args) throws InterruptedException;
-
-	protected abstract boolean stopWhen();
+	protected List<Future<String>> results = new ArrayList<>();
 
 	protected ExecutorService service = Executors.newCachedThreadPool();
 
-	protected List<Future<String>> results = new ArrayList<>();
+	protected String url;
+
+	public Harvester(Map<Argument, String> argumentMap) {
+		this.url = argumentMap.get(Argument.ITEM);
+		String browser = argumentMap.get(Argument.BROWSER);
+		if (browser != null && browser.equals(FIREFOX)) {
+			System.setProperty(Argument.FIREFOX_BIN.getArg(), argumentMap.get(Argument.FIREFOX_BIN));
+			System.setProperty(Argument.GECKO_DRIVER.getArg(), argumentMap.get(Argument.GECKO_DRIVER));
+		}
+		driver = new FirefoxDriver();
+		if (url != null) {
+			driver.get(url);
+			try {
+				restoreSession();
+			} catch (IOException | ClassNotFoundException e) {
+				logger.debug(e);
+				logger.error("Error while loading stored session");
+			}
+		}
+	}
+
+	protected void closeStream(Closeable c) {
+		if (c == null) {
+			return;
+		}
+		try {
+			c.close();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	protected void createSaveThread(final String fileUrl, final String path) {
+		Future<String> submit = (Future<String>) service.submit(() -> saveImage(fileUrl, path, null));
+		results.add(submit);
+	}
+
+	@SuppressWarnings("unchecked")
+	protected void createSaveThread(final String fileUrl, final String path, String fileName) {
+		Future<String> submit = (Future<String>) service.submit(() -> saveImage(fileUrl, path, fileName));
+		results.add(submit);
+	}
+
+	public void finish() throws InterruptedException {
+		if (!results.isEmpty()) {
+			while (results.parallelStream().noneMatch(a -> a.isDone())) {
+				logger.info("Waiting 5s for tasks to finish");
+				Thread.sleep(5000);
+				results.removeIf(this::finished);
+			}
+		}
+		service.shutdown();
+		driver.quit();
+	}
+
+	private boolean finished(Future<String> a) {
+		try {
+			return a.isDone() && a.get() != null;
+		} catch (InterruptedException | ExecutionException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
 
 	protected String getFileName(String url, String raw) {
 		for (int i = 0; i < 5; i++) {
@@ -84,15 +145,13 @@ public abstract class Harvester {
 		return str;
 	}
 
-	private String validateName(String name) {
-		Pattern nameMatcher = Pattern.compile("[\\;\\\\\\/\\?\\<\\>\\\"\\|]");
-		Matcher finder = nameMatcher.matcher(name);
-		if (finder.find()) {
-			logger.error("Invalid file name, using random");
-			return String.valueOf(System.currentTimeMillis());
-		}
-		return name;
-	}
+	public abstract void buy(Map<Argument, String> args) throws InterruptedException;
+
+	public abstract void harvest(Map<Argument, String> args) throws InterruptedException;
+
+	public abstract void login() throws FileNotFoundException, IOException;
+
+	public abstract void restoreSession() throws FileNotFoundException, IOException, ClassNotFoundException;
 
 	private void saveImage(String fileUrl, String path, String fileName) {
 		InputStream is = null;
@@ -141,70 +200,15 @@ public abstract class Harvester {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	protected void createSaveThread(final String fileUrl, final String path) {
-		Future<String> submit = (Future<String>) service.submit(() -> saveImage(fileUrl, path, null));
-		results.add(submit);
-	}
+	protected abstract boolean stopWhen();
 
-	@SuppressWarnings("unchecked")
-	protected void createSaveThread(final String fileUrl, final String path, String fileName) {
-		Future<String> submit = (Future<String>) service.submit(() -> saveImage(fileUrl, path, fileName));
-		results.add(submit);
-	}
-
-	protected void closeStream(Closeable c) {
-		if (c == null) {
-			return;
+	private String validateName(String name) {
+		Pattern nameMatcher = Pattern.compile("[\\;\\\\\\/\\?\\<\\>\\\"\\|]");
+		Matcher finder = nameMatcher.matcher(name);
+		if (finder.find()) {
+			logger.error("Invalid file name, using random");
+			return String.valueOf(System.currentTimeMillis());
 		}
-		try {
-			c.close();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+		return name;
 	}
-
-	public Harvester(Map<Argument, String> argumentMap) {
-		this.url = argumentMap.get(Argument.ITEM);
-		String browser = argumentMap.get(Argument.BROWSER);
-		if (browser != null && browser.equals(FIREFOX)) {
-			System.setProperty(Argument.FIREFOX_BIN.getArg(), argumentMap.get(Argument.FIREFOX_BIN));
-			System.setProperty(Argument.GECKO_DRIVER.getArg(), argumentMap.get(Argument.GECKO_DRIVER));
-		}
-		driver = new FirefoxDriver();
-		if (url != null) {
-			driver.get(url);
-			// try {
-			// restoreSession();
-			// } catch (IOException | ClassNotFoundException e) {
-			// logger.debug(e);
-			// logger.error("Error while loading stored session");
-			// }
-		}
-	}
-
-	public void finish() throws InterruptedException {
-		if (!results.isEmpty()) {
-			while (results.parallelStream().noneMatch(a -> a.isDone())) {
-				logger.info("Waiting 5s for tasks to finish");
-				Thread.sleep(5000);
-				results.removeIf(this::finished);
-			}
-		}
-		service.shutdown();
-		driver.quit();
-	}
-
-	private boolean finished(Future<String> a) {
-		try {
-			return a.isDone() && a.get() != null;
-		} catch (InterruptedException | ExecutionException e) {
-			e.printStackTrace();
-		}
-		return false;
-	}
-
-	public abstract void login() throws FileNotFoundException, IOException;
-
-	public abstract void restoreSession() throws FileNotFoundException, IOException, ClassNotFoundException;
 }
