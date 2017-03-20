@@ -1,16 +1,17 @@
 package harvester.app.harvesters;
 
+import java.util.Map;
+
+import harvester.app.Argument;
+
 public abstract class CountLimitedHarvester extends Harvester {
 
 	protected int limit = Integer.MAX_VALUE;
 	protected int pos = 0;
+	protected int wait = 1000;
 
-	public CountLimitedHarvester(String url) {
-		super(url);
-	}
-
-	public CountLimitedHarvester(String url, String login, String password) {
-		super(url, login, password);
+	public CountLimitedHarvester(Map<Argument, String> argumentMap) {
+		super(argumentMap);
 	}
 
 	protected void setLimit(String value) {
@@ -20,6 +21,12 @@ public abstract class CountLimitedHarvester extends Harvester {
 			logger.error("Error parsing limit value, harvesting all images.");
 		}
 		logger.info("Images count limited to " + limit);
+	}
+
+	protected void setWait(String string) {
+		if (string != null) {
+			this.wait = Integer.parseInt(string);
+		}
 	}
 
 	@Override

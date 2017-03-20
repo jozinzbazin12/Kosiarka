@@ -4,11 +4,21 @@ import java.util.HashMap;
 import java.util.Map;
 
 public enum Argument {
-	HELP("-help"), URL("-url"), PATH("-path"), LOGIN("-login"), PASSWORD("-password"), LIMIT("-limit");
+	HELP("help"),
+	ITEM("item"),
+	PATH("path"),
+	LOGIN("login", true),
+	LIMIT("limit"),
+	BROWSER("browser.type"),
+	WAIT("page.wait"),
+	FIREFOX_BIN("webdriver.firefox.bin"),
+	GECKO_DRIVER("webdriver.gecko.driver");
 
 	private static final Map<String, Argument> lookup = new HashMap<>();
 
 	private String arg;
+
+	private boolean single;
 
 	static {
 		for (Argument d : Argument.values())
@@ -17,6 +27,12 @@ public enum Argument {
 
 	private Argument(String arg) {
 		this.arg = arg;
+		this.single = false;
+	}
+
+	private Argument(String arg, boolean single) {
+		this.arg = arg;
+		this.single = single;
 	}
 
 	public String getArg() {
@@ -25,5 +41,9 @@ public enum Argument {
 
 	public static Argument get(String value) {
 		return lookup.get(value);
+	}
+
+	public boolean isSingle() {
+		return single;
 	}
 }

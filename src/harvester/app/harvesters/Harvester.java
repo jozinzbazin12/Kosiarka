@@ -2,31 +2,38 @@ package harvester.app.harvesters;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.Authenticator;
 import java.net.MalformedURLException;
-import java.net.PasswordAuthentication;
 import java.net.URL;
 import java.net.URLConnection;
 import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.log4j.Logger;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.firefox.FirefoxBinary;
 import org.openqa.selenium.firefox.FirefoxDriver;
-import org.openqa.selenium.firefox.FirefoxProfile;
 
 import harvester.app.Argument;
 
 public abstract class Harvester {
 
+	private static final String FIREFOX = "firefox";
+
 	protected static final String SRC = "src";
-	
+
 	protected static final String HREF = "href";
 
 	private static final String CONTENT_DISPOSITION = "Content-Disposition";
@@ -35,35 +42,59 @@ public abstract class Harvester {
 
 	private static final String HEADER = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0";
 
-	private static final int MAX_THREADS = 8;
-
-	private int threads = 0;
-
 	protected String url;
 
 	protected static final Logger logger = Logger.getLogger(Harvester.class);
 
 	protected WebDriver driver;
 
-	public abstract void harvest(String pathToSave, Map<Argument, String> args);
+	public abstract void harvest(Map<Argument, String> args) throws InterruptedException;
 
 	protected abstract boolean stopWhen();
 
+	protected ExecutorService service = Executors.newCachedThreadPool();
+
+	protected List<Future<String>> results = new ArrayList<>();
+
 	protected String getFileName(String url, String raw) {
+		for (int i = 0; i < 5; i++) {
+			try {
+				return getName(url, raw);
+			} catch (Exception e) {
+				logger.error(e);
+			}
+		}
+		logger.error("Could not obtain file name, using random");
+		return String.valueOf(System.currentTimeMillis());
+	}
+
+	private String getName(String url, String raw) {
 		if (raw != null && raw.indexOf("=") != -1) {
 			String name = raw.split("=")[1];
-			return name.replace("\"", "");
+			name = name.replace("\"", "");
+			name = validateName(name);
+			return name;
 		}
 		String str = url.substring(url.lastIndexOf("/") + 1, url.length());
 		int index = str.indexOf("?");
 		if (index > -1) {
-			return str.substring(0, index);
+			str = str.substring(0, index);
 		}
+		str = validateName(str);
 		return str;
 	}
 
-	private void saveImage(String fileUrl, String path) {
-		URL url;
+	private String validateName(String name) {
+		Pattern nameMatcher = Pattern.compile("[\\;\\\\\\/\\?\\<\\>\\\"\\|]");
+		Matcher finder = nameMatcher.matcher(name);
+		if (finder.find()) {
+			logger.error("Invalid file name, using random");
+			return String.valueOf(System.currentTimeMillis());
+		}
+		return name;
+	}
+
+	private void saveImage(String fileUrl, String path, String fileName) {
 		InputStream is = null;
 		OutputStream os = null;
 		File file = null;
@@ -76,17 +107,19 @@ public abstract class Harvester {
 					throw new IOException("Could not create destination directory");
 				}
 			}
-			url = new URL(fileUrl);
+			URL url = new URL(fileUrl);
 			URLConnection con = url.openConnection();
 			con.addRequestProperty(USER_AGENT, HEADER);
-			String destinationFile = getFileName(fileUrl, con.getHeaderField(CONTENT_DISPOSITION));
-			logger.info("Saving file: " + destinationFile);
+			if (fileName == null) {
+				fileName = getFileName(fileUrl, con.getHeaderField(CONTENT_DISPOSITION));
+			}
+			logger.info("Saving file: " + fileName);
 			if ("gzip".equals(con.getContentEncoding())) {
 				is = new GZIPInputStream(con.getInputStream());
 			} else {
 				is = con.getInputStream();
 			}
-			file = new File(destination.getAbsolutePath() + File.separator + destinationFile);
+			file = new File(destination.getAbsolutePath() + File.separator + fileName);
 			if (file.exists()) {
 				logger.info(MessageFormat.format("File [{0}] already exists.", file.getAbsolutePath()));
 			}
@@ -108,23 +141,16 @@ public abstract class Harvester {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	protected void createSaveThread(final String fileUrl, final String path) {
-		while (threads >= MAX_THREADS) {
-			try {
-				Thread.sleep(5);
-			} catch (InterruptedException e) {
-				logger.error("Could not sleep thread");
-			}
-		}
-		Thread t = new Thread() {
-			@Override
-			public void run() {
-				saveImage(fileUrl, path);
-				threads--;
-			};
-		};
-		t.start();
-		threads++;
+		Future<String> submit = (Future<String>) service.submit(() -> saveImage(fileUrl, path, null));
+		results.add(submit);
+	}
+
+	@SuppressWarnings("unchecked")
+	protected void createSaveThread(final String fileUrl, final String path, String fileName) {
+		Future<String> submit = (Future<String>) service.submit(() -> saveImage(fileUrl, path, fileName));
+		results.add(submit);
 	}
 
 	protected void closeStream(Closeable c) {
@@ -138,33 +164,47 @@ public abstract class Harvester {
 		}
 	}
 
-	public Harvester(String url) {
-		this.url = url;
-		File pathToBinary = new File("C:\\Programy\\Mozilla Firefox\\firefox.exe");
-		FirefoxBinary ffBinary = new FirefoxBinary(pathToBinary);
-		FirefoxProfile firefoxProfile = new FirefoxProfile();
-		driver = new FirefoxDriver(ffBinary, firefoxProfile);
-		driver.get(url);
+	public Harvester(Map<Argument, String> argumentMap) {
+		this.url = argumentMap.get(Argument.ITEM);
+		String browser = argumentMap.get(Argument.BROWSER);
+		if (browser != null && browser.equals(FIREFOX)) {
+			System.setProperty(Argument.FIREFOX_BIN.getArg(), argumentMap.get(Argument.FIREFOX_BIN));
+			System.setProperty(Argument.GECKO_DRIVER.getArg(), argumentMap.get(Argument.GECKO_DRIVER));
+		}
+		driver = new FirefoxDriver();
+		if (url != null) {
+			driver.get(url);
+			// try {
+			// restoreSession();
+			// } catch (IOException | ClassNotFoundException e) {
+			// logger.debug(e);
+			// logger.error("Error while loading stored session");
+			// }
+		}
 	}
 
-	public Harvester(String url, final String login, final String password) {
-		this(url);
-
-		Authenticator.setDefault(new Authenticator() {
-			protected PasswordAuthentication getPasswordAuthentication() {
-				return new PasswordAuthentication(login, password.toCharArray());
-			}
-		});
-	}
-
-	public void finish() {
-		while (threads != 0) {
-			try {
-				Thread.sleep(5);
-			} catch (InterruptedException e) {
-				logger.error("Could not sleep thread");
+	public void finish() throws InterruptedException {
+		if (!results.isEmpty()) {
+			while (results.parallelStream().noneMatch(a -> a.isDone())) {
+				logger.info("Waiting 5s for tasks to finish");
+				Thread.sleep(5000);
+				results.removeIf(this::finished);
 			}
 		}
-		driver.close();
+		service.shutdown();
+		driver.quit();
 	}
+
+	private boolean finished(Future<String> a) {
+		try {
+			return a.isDone() && a.get() != null;
+		} catch (InterruptedException | ExecutionException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+
+	public abstract void login() throws FileNotFoundException, IOException;
+
+	public abstract void restoreSession() throws FileNotFoundException, IOException, ClassNotFoundException;
 }

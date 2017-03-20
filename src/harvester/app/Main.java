@@ -1,21 +1,20 @@
 package harvester.app;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.text.MessageFormat;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import javax.management.InvalidAttributeValueException;
 
 import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
 
-import harvester.app.harvesters.DefaultHarvester;
-import harvester.app.harvesters.FaNotificationHarvester;
-import harvester.app.harvesters.GoogleHarvester;
 import harvester.app.harvesters.Harvester;
-import harvester.app.harvesters._4ChanHarvester;
+import harvester.app.harvesters.SteamMarketHarvester;
 
 public class Main {
 
@@ -23,20 +22,11 @@ public class Main {
 
 	private static final Logger logger = Logger.getLogger(Main.class);
 
-	private static final String GOOGLE = "google.pl";
+	private static final String ITEMS_FILE = "items.properties";
 
-	private static final String _4CHAN = "boards.4chan.org";
+	private static final String SETTINGS_FILE = "settings.properties";
 
-	private static final String FA = "furaffinity.net";
-
-	private static String getDomainName(String url) throws URISyntaxException {
-		URI uri = new URI(url);
-		String domain = uri.getHost();
-
-		return domain.startsWith("www.") ? domain.substring(4) : domain;
-	}
-
-	public static void main(String... args) {
+	public static void main(String... args) throws Exception {
 		DOMConfigurator.configure(LOG4J_XML);
 		Map<Argument, String> argumentMap = null;
 		try {
@@ -45,42 +35,52 @@ public class Main {
 			displayHelp();
 			return;
 		}
-		String address = argumentMap.get(Argument.URL);
-		String domain;
+		Properties settings = loadProps(SETTINGS_FILE);
+		applySettings(settings, argumentMap);
+		Properties itemsProperties = loadProps(ITEMS_FILE);
+		transformItem(argumentMap, itemsProperties);
+		Harvester harvester = new SteamMarketHarvester(argumentMap);
+
+		logger.info("Using Steam market harvester");
 		try {
-			domain = getDomainName(address);
-		} catch (URISyntaxException e) {
-			logger.error("Host not found");
-			displayHelp();
+			if (argumentMap.containsKey(Argument.LOGIN)) {
+				harvester.login();
+			}
+			if (argumentMap.containsKey(Argument.ITEM)) {
+				logger.info("Starting harvesting");
+				harvester.harvest(argumentMap);
+			}
+		} finally {
+			harvester.finish();
+			logger.info("Harvesting completed");
+		}
+	}
+
+	private static void transformItem(Map<Argument, String> argumentMap, Properties itemsProperties) {
+		String key = argumentMap.get(Argument.ITEM);
+		if (key == null) {
 			return;
 		}
-
-		String pathToSave = argumentMap.get(Argument.PATH);
-		Harvester harvester = null;
-
-		switch (domain) {
-		case GOOGLE:
-			harvester = new GoogleHarvester(address);
-			logger.info("Using Google Image harvester");
-			break;
-		case _4CHAN:
-			harvester = new _4ChanHarvester(address);
-			logger.info("Using 4Chan Image harvester");
-			break;
-		case FA:
-			harvester = new FaNotificationHarvester(address, argumentMap.get(Argument.LOGIN), argumentMap.get(Argument.PASSWORD));
-			logger.info("Using FA Image harvester");
-			break;
-		default:
-			harvester = new DefaultHarvester(address);
-			logger.info("Using default harvester");
-			break;
+		String item = itemsProperties.getProperty(key);
+		if (item != null) {
+			argumentMap.put(Argument.ITEM, item);
 		}
+	}
 
-		logger.info("Starting harvesting");
-		harvester.harvest(pathToSave, argumentMap);
-		harvester.finish();
-		logger.info("Harvesting completed");
+	private static void applySettings(Properties settings, Map<Argument, String> argumentMap) {
+		settings.forEach((key, value) -> extracted(argumentMap, key, value));
+	}
+
+	private static String extracted(Map<Argument, String> argumentMap, Object key, Object value) {
+		return argumentMap.put(Argument.get(key.toString()), value.toString());
+	}
+
+	private static Properties loadProps(String file) throws IOException, FileNotFoundException {
+		Properties properties = new Properties();
+		try (InputStream input = new FileInputStream(file)) {
+			properties.load(input);
+		}
+		return properties;
 	}
 
 	private static Map<Argument, String> getArgs(String... args) throws InvalidAttributeValueException {
@@ -88,17 +88,12 @@ public class Main {
 			logger.error("No arguments");
 			throw new InvalidAttributeValueException();
 		}
-
 		Map<Argument, String> map = transformArgs(args);
-
 		return map;
 	}
 
 	private static void displayHelp() {
-		String message = MessageFormat.format(
-				"Help:\nChoose site by {0} parameter and path to save by {1}. If authentication is required provide login by {2} an password by {3}",
-				Argument.URL.getArg(), Argument.PATH.getArg(), Argument.LOGIN.getArg(), Argument.PASSWORD.getArg());
-		logger.info(message);
+		logger.info("trololo");
 	}
 
 	private static Map<Argument, String> transformArgs(String... args) {
@@ -107,13 +102,17 @@ public class Main {
 		Argument arg = null;
 		Argument lastArg = null;
 		for (String i : args) {
-			arg = getArgument(i);
+			arg = getArgument(i.substring(1));
 			if (arg != null) {
 				lastArg = arg;
 				if (lastArgumentName) {
 					continue;
 				} else {
-					lastArgumentName = true;
+					if (arg.isSingle()) {
+						map.put(lastArg, i);
+					} else {
+						lastArgumentName = true;
+					}
 				}
 			} else {
 				map.put(lastArg, i);
@@ -131,4 +130,5 @@ public class Main {
 		}
 		return arg;
 	}
+
 }
