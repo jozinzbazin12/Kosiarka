@@ -8,6 +8,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,7 +29,7 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 	}
 
 	@SuppressWarnings("deprecation")
-	private void collectItemsOnPage(List<String> items, List<String> ids) {
+	private void collectItemsOnPage(Set<String> items, Set<String> ids) {
 		List<WebElement> elements = driver.findElements(By.className("market_listing_row"));
 		for (WebElement i : elements) {
 			if (stopWhen()) {
@@ -47,9 +48,16 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 				int pos = attribute.indexOf("listing', '");
 				int endpos = attribute.indexOf("'", pos + 11);
 				String id = attribute.substring(pos + 11, endpos);
+				WebElement price = i
+						.findElement(By.xpath(".//span[@class='market_listing_price market_listing_price_with_fee']"));
+
 				items.add(href);
-				ids.add(id);
-				this.pos++;
+				String priceStr = price.getText();
+				if (this.price < parsePrice(priceStr)) {
+					logger.info("Max price reached");
+					this.pos = Integer.MAX_VALUE / 2;
+				}
+				ids.add(priceStr + "-" + id);
 			} catch (Exception e) {
 				logger.error(e);
 			}
@@ -71,42 +79,73 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 	public void harvest(Map<Argument, String> args) throws InterruptedException {
 		setLimit(args.get(Argument.LIMIT));
 		setWait(args.get(Argument.WAIT));
+		setPriceLimit(args.get(Argument.MAX_PRICE));
 		String pathToSave = args.get(Argument.PATH);
-		List<String> items = new ArrayList<>();
-		List<String> ids = new ArrayList<>();
+		Set<String> items = new HashSet<>();
+		Set<String> ids = new HashSet<>();
+		gotoPage(args.get(Argument.START));
 
 		while (!stopWhen()) {
 			collectItemsOnPage(items, ids);
+			this.pos++;
 			Thread.sleep(wait);
 			nextPage();
 		}
-		logger.info(items);
+		logger.debug(items);
+		logger.info(String.format("Found %d items", ids.size()));
 		driver.get("https://metjm.net/csgo/");
 		for (String url : items) {
 			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/input")).sendKeys(url);
 			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/div")).click();
 		}
-		while (driver.findElements(By.className("openImageButton")).size() - 1 != items.size()) {
+
+		String waitMsg = String.format("Waitig %dms for metjm...", wait);
+		while (driver.findElements(By.xpath("//div[@class='openImageButton' and @style]")).size() != items.size()) {
 			try {
-				logger.info("Waitig 1s for metjm...");
+				logger.info(waitMsg);
 				Thread.sleep(wait);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
-		List<WebElement> findElements = driver.findElements(By.className("openImageButton"));
-		int id = ids.size() - 1;
+		collectScreens(pathToSave, new ArrayList<>(ids));
+	}
+
+	private void collectScreens(String pathToSave, List<String> ids) {
+		driver.navigate().refresh();
+		List<WebElement> findElements = driver.findElements(By.xpath("//div[@class='openImageButton' and @style]"));
+		int id = ids.size();
 		long time = System.currentTimeMillis();
 		for (WebElement i : findElements) {
-			String attribute = i.getAttribute(STYLE);
-			if (attribute == null || attribute.equals("")) {
-				break;
+			try {
+				--id;
+				if (id < 0) {
+					break;
+				}
+				processScreen(pathToSave, ids, id, time, i);
+			} catch (Exception e) {
+				logger.error("Error while downloading " + ids.get(id));
 			}
-			int urlpos = attribute.indexOf("url(\"");
-			int endurlpos = attribute.indexOf("\");");
-			String url = attribute.substring(urlpos + 5, endurlpos);
-			url = url.replace("_t.jpg", ".jpg");
-			createSaveThread(url, pathToSave + "/" + time, ids.get(id--) + ".jpg");
+		}
+	}
+
+	private void processScreen(String pathToSave, List<String> ids, int id, long time, WebElement i) {
+		String attribute = i.getAttribute(STYLE);
+		int urlpos = attribute.indexOf("url(\"");
+		int endurlpos = attribute.indexOf("\");");
+		String url = attribute.substring(urlpos + 5, endurlpos);
+		url = url.replace("_t.jpg", ".jpg");
+		createSaveThread(url, pathToSave + "/" + time, ids.get(id) + ".jpg");
+	}
+
+	private void gotoPage(String start) throws InterruptedException {
+		if (start != null) {
+			int startPage = Integer.parseInt(start) - 1;
+			for (int i = 0; i < startPage; i++) {
+				nextPage();
+				this.pos++;
+				Thread.sleep(wait);
+			}
 		}
 	}
 

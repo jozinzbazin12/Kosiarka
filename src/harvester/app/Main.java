@@ -74,11 +74,7 @@ public class Main {
 	}
 
 	private static void applySettings(Properties settings, Map<Argument, String> argumentMap) {
-		settings.forEach((key, value) -> extracted(argumentMap, key, value));
-	}
-
-	private static String extracted(Map<Argument, String> argumentMap, Object key, Object value) {
-		return argumentMap.put(Argument.get(key.toString()), value.toString());
+		settings.forEach((key, value) -> argumentMap.putIfAbsent(Argument.get(key.toString()), value.toString()));
 	}
 
 	private static Properties loadProps(String file) throws IOException, FileNotFoundException {

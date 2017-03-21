@@ -107,8 +107,8 @@ public abstract class Harvester {
 				results.removeIf(this::finished);
 			}
 		}
-		service.shutdown();
 		driver.quit();
+		service.shutdown();
 	}
 
 	private boolean finished(Future<String> a) {
