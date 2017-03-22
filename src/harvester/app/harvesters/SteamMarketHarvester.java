@@ -8,10 +8,10 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URLDecoder;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
@@ -29,7 +29,7 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 	}
 
 	@SuppressWarnings("deprecation")
-	private void collectItemsOnPage(Set<String> items, Set<String> ids) {
+	private void collectItemsOnPage(List<Item> items) {
 		List<WebElement> elements = driver.findElements(By.className("market_listing_row"));
 		for (WebElement i : elements) {
 			if (stopWhen()) {
@@ -51,13 +51,13 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 				WebElement price = i
 						.findElement(By.xpath(".//span[@class='market_listing_price market_listing_price_with_fee']"));
 
-				items.add(href);
 				String priceStr = price.getText();
 				if (this.price < parsePrice(priceStr)) {
 					logger.info("Max price reached");
 					this.pos = Integer.MAX_VALUE / 2;
 				}
-				ids.add(priceStr + "-" + id);
+				Item item = new Item(priceStr + "-" + id, href);
+				items.add(item);
 			} catch (Exception e) {
 				logger.error(e);
 			}
@@ -65,8 +65,8 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 	}
 
 	private WebElement searchItem(String itemId) {
+		this.pos++;
 		try {
-			this.pos += 10;
 			return driver.findElement(
 					By.xpath(String.format(".//div[@class='market_listing_buy_button']/a[contains(@href,'%s')]", itemId)));
 		} catch (Exception e) {
@@ -81,21 +81,22 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 		setWait(args.get(Argument.WAIT));
 		setPriceLimit(args.get(Argument.MAX_PRICE));
 		String pathToSave = args.get(Argument.PATH);
-		Set<String> items = new HashSet<>();
-		Set<String> ids = new HashSet<>();
+		List<Item> items = new ArrayList<>();
 		gotoPage(args.get(Argument.START));
 
 		while (!stopWhen()) {
-			collectItemsOnPage(items, ids);
+			collectItemsOnPage(items);
 			this.pos++;
 			Thread.sleep(wait);
 			nextPage();
 		}
+		items = items.stream().distinct().collect(Collectors.toList());
 		logger.debug(items);
-		logger.info(String.format("Found %d items", ids.size()));
+		logger.info(String.format("Found %d items", items.size()));
 		driver.get("https://metjm.net/csgo/");
-		for (String url : items) {
-			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/input")).sendKeys(url);
+		for (Item i : items) {
+			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/input")).sendKeys(i.getLink());
+			Thread.sleep(100);
 			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/div")).click();
 		}
 
@@ -108,34 +109,26 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 				e.printStackTrace();
 			}
 		}
-		collectScreens(pathToSave, new ArrayList<>(ids));
+		collectScreens(pathToSave, items);
 	}
 
-	private void collectScreens(String pathToSave, List<String> ids) {
-		driver.navigate().refresh();
-		List<WebElement> findElements = driver.findElements(By.xpath("//div[@class='openImageButton' and @style]"));
-		int id = ids.size();
+	private void collectScreens(String pathToSave, List<Item> items) {
+		List<WebElement> elements = driver.findElements(By.xpath("//div[@class='openImageButton' and @style]"));
+		int id = elements.size() - 1;
 		long time = System.currentTimeMillis();
-		for (WebElement i : findElements) {
+		for (Item i : items) {
 			try {
-				--id;
-				if (id < 0) {
-					break;
-				}
-				processScreen(pathToSave, ids, id, time, i);
+				WebElement el = elements.get(id--);
+				String attribute = el.getAttribute(STYLE);
+				int urlpos = attribute.indexOf("url(\"");
+				int endurlpos = attribute.indexOf("\");");
+				String url = attribute.substring(urlpos + 5, endurlpos);
+				url = url.replace("_t.jpg", ".jpg");
+				createSaveThread(url, pathToSave + "/" + time, i.getId() + ".jpg");
 			} catch (Exception e) {
-				logger.error("Error while downloading " + ids.get(id));
+				logger.error("Error while downloading " + i.getId());
 			}
 		}
-	}
-
-	private void processScreen(String pathToSave, List<String> ids, int id, long time, WebElement i) {
-		String attribute = i.getAttribute(STYLE);
-		int urlpos = attribute.indexOf("url(\"");
-		int endurlpos = attribute.indexOf("\");");
-		String url = attribute.substring(urlpos + 5, endurlpos);
-		url = url.replace("_t.jpg", ".jpg");
-		createSaveThread(url, pathToSave + "/" + time, ids.get(id) + ".jpg");
 	}
 
 	private void gotoPage(String start) throws InterruptedException {
@@ -194,6 +187,7 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 		}
 		setLimit(args.get(Argument.LIMIT));
 		setWait(args.get(Argument.WAIT));
+		gotoPage(args.get(Argument.START));
 		String id = args.get(Argument.BUY);
 		WebElement searchItem = null;
 		while (!stopWhen()) {
