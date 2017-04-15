@@ -5,6 +5,7 @@ import java.util.Map;
 
 public enum Argument {
 	HELP("help", true),
+	SITE("site"),
 	BUY("buy"),
 	ITEM("item"),
 	PATH("path"),

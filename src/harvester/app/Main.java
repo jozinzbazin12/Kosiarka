@@ -14,6 +14,7 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
 
 import harvester.app.harvesters.Harvester;
+import harvester.app.harvesters.SJHarvester;
 import harvester.app.harvesters.SteamMarketHarvester;
 
 public class Main {
@@ -43,9 +44,9 @@ public class Main {
 		applySettings(settings, argumentMap);
 		Properties itemsProperties = loadProps(ITEMS_FILE);
 		transformItem(argumentMap, itemsProperties);
-		Harvester harvester = new SteamMarketHarvester(argumentMap);
 
-		logger.info("Using Steam market harvester");
+		Harvester harvester = getHarvester(argumentMap);
+
 		try {
 			if (argumentMap.containsKey(Argument.LOGIN)) {
 				harvester.login();
@@ -59,6 +60,21 @@ public class Main {
 		} finally {
 			harvester.finish();
 			logger.info("Completed");
+		}
+	}
+
+	private static Harvester getHarvester(Map<Argument, String> argumentMap) {
+		String site = argumentMap.get(Argument.SITE);
+		if (site == null) {
+			throw new IllegalArgumentException("Site not specified!");
+		}
+		switch (site) {
+			case "sm":
+				return new SteamMarketHarvester(argumentMap);
+			case "sj":
+				return new SJHarvester(argumentMap);
+			default:
+				throw new IllegalArgumentException("Unknown harvest site: " + site);
 		}
 	}
 

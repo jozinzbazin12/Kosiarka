@@ -25,7 +25,8 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 	private static final String SESSION_DAT = "session.dat";
 
 	public SteamMarketHarvester(Map<Argument, String> argumentMap) {
-		super(argumentMap);
+		super(argumentMap, argumentMap.get(Argument.ITEM));
+		logger.info("Using Steam market harvester");
 	}
 
 	@SuppressWarnings("deprecation")
@@ -91,44 +92,7 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 			nextPage();
 		}
 		items = items.stream().distinct().collect(Collectors.toList());
-		logger.debug(items);
-		logger.info(String.format("Found %d items", items.size()));
-		driver.get("https://metjm.net/csgo/");
-		for (Item i : items) {
-			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/input")).sendKeys(i.getLink());
-			Thread.sleep(100);
-			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/div")).click();
-		}
-
-		String waitMsg = String.format("Waitig %dms for metjm...", wait);
-		while (driver.findElements(By.xpath("//div[@class='openImageButton' and @style]")).size() != items.size()) {
-			try {
-				logger.info(waitMsg);
-				Thread.sleep(wait);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
 		collectScreens(pathToSave, items);
-	}
-
-	private void collectScreens(String pathToSave, List<Item> items) {
-		List<WebElement> elements = driver.findElements(By.xpath("//div[@class='openImageButton' and @style]"));
-		int id = elements.size() - 1;
-		long time = System.currentTimeMillis();
-		for (Item i : items) {
-			try {
-				WebElement el = elements.get(id--);
-				String attribute = el.getAttribute(STYLE);
-				int urlpos = attribute.indexOf("url(\"");
-				int endurlpos = attribute.indexOf("\");");
-				String url = attribute.substring(urlpos + 5, endurlpos);
-				url = url.replace("_t.jpg", ".jpg");
-				createSaveThread(url, pathToSave + "/" + time, i.getId() + ".jpg");
-			} catch (Exception e) {
-				logger.error("Error while downloading " + i.getId());
-			}
-		}
 	}
 
 	private void gotoPage(String start) throws InterruptedException {

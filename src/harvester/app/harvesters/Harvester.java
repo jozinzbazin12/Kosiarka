@@ -56,8 +56,8 @@ public abstract class Harvester {
 
 	protected boolean logged;
 
-	public Harvester(Map<Argument, String> argumentMap) {
-		this.url = argumentMap.get(Argument.ITEM);
+	public Harvester(Map<Argument, String> argumentMap, String url) {
+		this.url = url;
 		String browser = argumentMap.get(Argument.BROWSER);
 		if (browser != null && browser.equals(FIREFOX)) {
 			System.setProperty(Argument.FIREFOX_BIN.getArg(), argumentMap.get(Argument.FIREFOX_BIN));
