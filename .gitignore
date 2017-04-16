@@ -7,3 +7,5 @@ target/
 *.class
 *.txt
 test/
+session.dat
+log.txt

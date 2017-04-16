@@ -83,10 +83,10 @@ public abstract class CountLimitedHarvester extends Harvester {
 			try {
 				WebElement el = elements.get(id--);
 				String attribute = el.getAttribute(STYLE);
-				int urlpos = attribute.indexOf("url(\"");
+				int urlpos = attribute.indexOf("url(\"//");
 				int endurlpos = attribute.indexOf("\");");
-				String url = attribute.substring(urlpos + 5, endurlpos);
-				url = url.replace("_t.jpg", ".jpg");
+				String url = attribute.substring(urlpos + 7, endurlpos);
+				url = "http://" + url.replace("_t.jpg", ".jpg");
 				createSaveThread(url, pathToSave + "/" + time, i.getId() + ".jpg");
 			} catch (Exception e) {
 				logger.error("Error while downloading " + i.getId(), e);
