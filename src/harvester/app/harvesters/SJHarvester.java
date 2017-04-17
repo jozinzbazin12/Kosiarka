@@ -4,10 +4,14 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.FluentWait;
 
 import harvester.app.Argument;
 
@@ -23,7 +27,11 @@ public class SJHarvester extends CountLimitedHarvester {
 		setWait(args.get(Argument.WAIT));
 		this.price = Double.parseDouble(args.get(Argument.MAX_PRICE));
 		String pathToSave = args.get(Argument.PATH);
+		new FluentWait<>(driver).withTimeout(20, TimeUnit.SECONDS).pollingEvery(200, TimeUnit.MILLISECONDS)
+				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("maxPrice")));
+		waitForPageLoad();
 
+		Thread.sleep(wait);
 		WebElement max = driver.findElement(By.id("maxPrice"));
 		max.clear();
 		max.sendKeys(String.valueOf((int) price));
@@ -42,7 +50,7 @@ public class SJHarvester extends CountLimitedHarvester {
 				.findElements(By.xpath("//main[@id='botsInventoryContainer']//div[@class='item-steam-view ng-scope']//li[1]/a"));
 		List<Item> urls = items.stream().map(i -> new Item(String.valueOf(System.currentTimeMillis()), i.getAttribute(HREF)))
 				.collect(Collectors.toList());
-		collectScreens(pathToSave, urls);
+		collectScreens(pathToSave, urls, "sj");
 	}
 
 	@Override

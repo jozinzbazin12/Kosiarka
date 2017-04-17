@@ -1,28 +1,20 @@
 package harvester.app.harvesters;
 
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.openqa.selenium.By;
-import org.openqa.selenium.Cookie;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebElement;
 
 import harvester.app.Argument;
 
 public class SteamMarketHarvester extends CountLimitedHarvester {
-
-	private static final String SESSION_DAT = "session.dat";
 
 	public SteamMarketHarvester(Map<Argument, String> argumentMap) {
 		super(argumentMap, argumentMap.get(Argument.ITEM));
@@ -92,7 +84,7 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 			nextPage();
 		}
 		items = items.stream().distinct().collect(Collectors.toList());
-		collectScreens(pathToSave, items);
+		collectScreens(pathToSave, items, "market");
 	}
 
 	private void gotoPage(String start) throws InterruptedException {
@@ -113,34 +105,12 @@ public class SteamMarketHarvester extends CountLimitedHarvester {
 
 	@Override
 	public void login() throws FileNotFoundException, IOException {
-		driver.get("https://steamcommunity.com/login/home/?goto=market%2F");
-		logger.info("Plese login now and press enter when you finish");
-		System.in.read();
-		Set<Cookie> cookies = driver.manage().getCookies();
-		try (FileOutputStream fileOut = new FileOutputStream(SESSION_DAT);
-				ObjectOutputStream os = new ObjectOutputStream(fileOut)) {
-			os.writeObject(cookies);
-		}
-		logger.info("Session saved");
+		steamLogin();
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void restoreSession() throws FileNotFoundException, IOException, ClassNotFoundException {
-		logger.info("Loading session...");
-		Set<Cookie> cookies;
-		try (FileInputStream fileIn = new FileInputStream(SESSION_DAT); ObjectInputStream is = new ObjectInputStream(fileIn)) {
-			cookies = (Set<Cookie>) is.readObject();
-		}
-		for (Cookie c : cookies) {
-			try {
-				driver.manage().addCookie(c);
-			} catch (Exception e) {
-				logger.error(e);
-			}
-		}
-		driver.navigate().refresh();
-		logger.info("Session loaded");
+		steamRestore();
 	}
 
 	@Override

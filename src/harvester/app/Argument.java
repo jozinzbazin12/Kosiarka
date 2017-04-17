@@ -8,6 +8,7 @@ public enum Argument {
 	SITE("site"),
 	BUY("buy"),
 	ITEM("item"),
+	LINK("link"),
 	PATH("path"),
 	LOGIN("login", true),
 	MAX_PRICE("max"),
