@@ -30,6 +30,8 @@ public class SJHarvester extends CountLimitedHarvester {
 		new FluentWait<>(driver).withTimeout(20, TimeUnit.SECONDS).pollingEvery(200, TimeUnit.MILLISECONDS)
 				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("maxPrice")));
 		waitForPageLoad();
+		new FluentWait<>(driver).withTimeout(20, TimeUnit.SECONDS).pollingEvery(200, TimeUnit.MILLISECONDS)
+				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("botSearch")));
 
 		Thread.sleep(wait);
 		WebElement max = driver.findElement(By.id("maxPrice"));

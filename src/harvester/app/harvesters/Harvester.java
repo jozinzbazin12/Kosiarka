@@ -34,7 +34,7 @@ public abstract class Harvester {
 
 	private static final String FIREFOX = "firefox";
 
-	private static final String HEADER = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0";
+	private static final String HEADER = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/53.0";
 
 	protected static final String HREF = "href";
 
