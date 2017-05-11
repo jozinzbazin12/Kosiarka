@@ -7,5 +7,5 @@ target/
 *.class
 *.txt
 test/
-session.dat
+*.dat
 log.txt

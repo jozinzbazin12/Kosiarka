@@ -15,11 +15,13 @@ import org.openqa.selenium.support.ui.FluentWait;
 
 import harvester.app.Argument;
 
-public class SJHarvester extends MetjmHarvester {
+public class CSHarvester extends MetjmHarvester {
 
-	public SJHarvester(Map<Argument, String> argumentMap) {
-		super(argumentMap, "http://skinsjar.com");
-		logger.info("Using SJ harvester");
+	private static final String INSPECTLINK = "inspectlink";
+
+	public CSHarvester(Map<Argument, String> argumentMap) {
+		super(argumentMap, "https://csgosell.com/");
+		logger.info("Using CS harvester");
 	}
 
 	@Override
@@ -28,31 +30,35 @@ public class SJHarvester extends MetjmHarvester {
 		setPriceLimit(args.get(Argument.MAX_PRICE));
 		String pathToSave = args.get(Argument.PATH);
 		new FluentWait<>(driver).withTimeout(20, TimeUnit.SECONDS).pollingEvery(200, TimeUnit.MILLISECONDS)
-				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("maxPrice")));
+				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("searchBar")));
 		waitForPageLoad();
 		new FluentWait<>(driver).withTimeout(20, TimeUnit.SECONDS).pollingEvery(200, TimeUnit.MILLISECONDS)
-				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("botSearch")));
+				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("searchBar")));
 
 		Thread.sleep(wait);
-		WebElement max = driver.findElement(By.id("maxPrice"));
+		WebElement max = driver.findElement(By.id("maxCost"));
 		max.clear();
-		max.sendKeys(String.valueOf((int) price));
+		max.sendKeys(String.valueOf((int) price) + "\n");
 
-		WebElement search = driver.findElement(By.id("botSearch"));
+		WebElement search = driver.findElement(By.id("searchBar"));
 		search.sendKeys(args.get(Argument.ITEM));
 
 		String waitMsg = String.format("Waitig %dms for items", wait);
-		driver.findElement(By.xpath("//img[@class='refresh ng-scope']")).click();
-		while (driver.findElement(By.xpath("//img[@class='refresh ng-scope']")).getAttribute("ng-click") == null) {
+		driver.findElement(By.xpath("//div[@id='column2']//a[@class='refreshButton']")).click();
+		while (driver.findElement(By.id("botTotalItems")).getText().isEmpty()) {
 			logger.info(waitMsg);
 			Thread.sleep(wait);
 		}
 
-		List<WebElement> items = driver
-				.findElements(By.xpath("//main[@id='botsInventoryContainer']//div[@class='item-steam-view ng-scope']//li[1]/a"));
-		List<Item> urls = items.stream().map(i -> new Item(String.valueOf(System.currentTimeMillis()), i.getAttribute(HREF)))
-				.collect(Collectors.toList());
-		collectScreens(pathToSave, urls, "sj");
+		List<WebElement> items = driver.findElements(By.xpath("//div[@id='column2']//div[@class='itemImgDiv']")).parallelStream()
+				.filter(elem -> elem.isDisplayed()).collect(Collectors.toList());
+		List<Item> urls = items.parallelStream().filter(i -> !extracted(i).isEmpty())
+				.map(i -> new Item(String.valueOf(System.currentTimeMillis()), extracted(i))).collect(Collectors.toList());
+		collectScreens(pathToSave, urls, "cs");
+	}
+
+	private String extracted(WebElement i) {
+		return i.getAttribute(INSPECTLINK);
 	}
 
 	@Override

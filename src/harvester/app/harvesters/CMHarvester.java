@@ -8,18 +8,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
 
 import harvester.app.Argument;
 
-public class SJHarvester extends MetjmHarvester {
+public class CMHarvester extends MetjmHarvester {
 
-	public SJHarvester(Map<Argument, String> argumentMap) {
-		super(argumentMap, "http://skinsjar.com");
-		logger.info("Using SJ harvester");
+	public CMHarvester(Map<Argument, String> argumentMap) {
+		super(argumentMap, "https://cs.money/");
+		logger.info("Using CM harvester");
 	}
 
 	@Override
@@ -28,31 +30,32 @@ public class SJHarvester extends MetjmHarvester {
 		setPriceLimit(args.get(Argument.MAX_PRICE));
 		String pathToSave = args.get(Argument.PATH);
 		new FluentWait<>(driver).withTimeout(20, TimeUnit.SECONDS).pollingEvery(200, TimeUnit.MILLISECONDS)
-				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("maxPrice")));
+				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("search_right")));
 		waitForPageLoad();
 		new FluentWait<>(driver).withTimeout(20, TimeUnit.SECONDS).pollingEvery(200, TimeUnit.MILLISECONDS)
-				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("botSearch")));
+				.ignoring(NoSuchElementException.class).until(ExpectedConditions.presenceOfElementLocated(By.id("search_right")));
 
 		Thread.sleep(wait);
-		WebElement max = driver.findElement(By.id("maxPrice"));
+		WebElement max = driver.findElement(By.id("maxCost"));
 		max.clear();
-		max.sendKeys(String.valueOf((int) price));
+		new Actions(driver).moveToElement(max).click().sendKeys(String.valueOf((int) price)).perform();
+		max.sendKeys(Keys.ENTER);
 
-		WebElement search = driver.findElement(By.id("botSearch"));
+		WebElement search = driver.findElement(By.id("search_right"));
 		search.sendKeys(args.get(Argument.ITEM));
 
 		String waitMsg = String.format("Waitig %dms for items", wait);
-		driver.findElement(By.xpath("//img[@class='refresh ng-scope']")).click();
-		while (driver.findElement(By.xpath("//img[@class='refresh ng-scope']")).getAttribute("ng-click") == null) {
+		driver.findElement(By.id("refresh_bots_inventory")).click();
+		while (driver.findElement(By.id("circle_bot_inventory")).isDisplayed()) {
 			logger.info(waitMsg);
 			Thread.sleep(wait);
 		}
 
-		List<WebElement> items = driver
-				.findElements(By.xpath("//main[@id='botsInventoryContainer']//div[@class='item-steam-view ng-scope']//li[1]/a"));
+		List<WebElement> items = driver.findElements(
+				By.xpath("//div[@id='inventory_bots']//div[@class='invertory_container_links']//a[@class='invertory_link']"));
 		List<Item> urls = items.stream().map(i -> new Item(String.valueOf(System.currentTimeMillis()), i.getAttribute(HREF)))
 				.collect(Collectors.toList());
-		collectScreens(pathToSave, urls, "sj");
+		collectScreens(pathToSave, urls, "cm");
 	}
 
 	@Override

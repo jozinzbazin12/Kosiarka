@@ -100,6 +100,7 @@ public abstract class Harvester {
 	}
 
 	public void finish() throws InterruptedException {
+		driver.quit();
 		if (!results.isEmpty()) {
 			while (results.parallelStream().noneMatch(a -> a.isDone())) {
 				logger.info("Waiting 5s for tasks to finish");
@@ -107,7 +108,6 @@ public abstract class Harvester {
 				results.removeIf(this::finished);
 			}
 		}
-		driver.quit();
 		service.shutdown();
 	}
 

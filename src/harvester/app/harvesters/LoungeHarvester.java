@@ -16,7 +16,7 @@ import org.openqa.selenium.WebElement;
 
 import harvester.app.Argument;
 
-public class LoungeHarvester extends CountLimitedHarvester {
+public class LoungeHarvester extends MetjmHarvester {
 
 	private static final String SESSION_DAT = "l_session.dat";
 
@@ -33,6 +33,8 @@ public class LoungeHarvester extends CountLimitedHarvester {
 	@Override
 	public void harvest(Map<Argument, String> args) throws InterruptedException {
 		driver.get(LOUNGE);
+		waitAndClick(By.xpath("//div[@id='cookiepolicy']/a[2]"));
+		Thread.sleep(500);
 		List<WebElement> elements = driver.findElements(By.xpath("//a[contains(@onclick,'bumpTrade')]"));
 		logger.info(String.format("Found %d items to bump", elements.size()));
 		for (WebElement e : elements) {

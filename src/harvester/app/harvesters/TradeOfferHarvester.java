@@ -19,7 +19,7 @@ import org.openqa.selenium.support.ui.FluentWait;
 
 import harvester.app.Argument;
 
-public class TradeOfferHarvester extends CountLimitedHarvester {
+public class TradeOfferHarvester extends MetjmHarvester {
 
 	public TradeOfferHarvester(Map<Argument, String> argumentMap) {
 		super(argumentMap, argumentMap.get(Argument.LINK));

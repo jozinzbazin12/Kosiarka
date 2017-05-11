@@ -13,6 +13,8 @@ import javax.management.InvalidAttributeValueException;
 import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
 
+import harvester.app.harvesters.CMHarvester;
+import harvester.app.harvesters.CSHarvester;
 import harvester.app.harvesters.Harvester;
 import harvester.app.harvesters.LoungeHarvester;
 import harvester.app.harvesters.SJHarvester;
@@ -77,6 +79,10 @@ public class Main {
 				return new SJHarvester(argumentMap);
 			case "to":
 				return new TradeOfferHarvester(argumentMap);
+			case "cm":
+				return new CMHarvester(argumentMap);
+			case "cs":
+				return new CSHarvester(argumentMap);
 			case "lounge":
 				return new LoungeHarvester(argumentMap);
 			default:

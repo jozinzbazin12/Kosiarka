@@ -14,7 +14,7 @@ import org.openqa.selenium.WebElement;
 
 import harvester.app.Argument;
 
-public class SteamMarketHarvester extends CountLimitedHarvester {
+public class SteamMarketHarvester extends MetjmHarvester {
 
 	public SteamMarketHarvester(Map<Argument, String> argumentMap) {
 		super(argumentMap, argumentMap.get(Argument.ITEM));

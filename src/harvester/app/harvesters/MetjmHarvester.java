@@ -22,7 +22,7 @@ import com.google.common.base.Function;
 
 import harvester.app.Argument;
 
-public abstract class CountLimitedHarvester extends Harvester {
+public abstract class MetjmHarvester extends Harvester {
 
 	protected int limit = 3;
 	protected int pos = 0;
@@ -31,7 +31,7 @@ public abstract class CountLimitedHarvester extends Harvester {
 
 	protected static final String SESSION_DAT = "session.dat";
 
-	public CountLimitedHarvester(Map<Argument, String> argumentMap, String url) {
+	public MetjmHarvester(Map<Argument, String> argumentMap, String url) {
 		super(argumentMap, url);
 	}
 
@@ -65,7 +65,7 @@ public abstract class CountLimitedHarvester extends Harvester {
 	protected double parsePrice(String string) {
 		string = string.replace(",", ".");
 		try {
-			return Double.parseDouble(string.substring(0, string.length() - 2));
+			return Double.parseDouble(string);
 		} catch (IllegalArgumentException e) {
 			logger.error("Error while parsing price " + string, e);
 		}
@@ -80,6 +80,9 @@ public abstract class CountLimitedHarvester extends Harvester {
 	private void doScreens(List<Item> items) throws InterruptedException {
 		logger.debug(items);
 		logger.info(String.format("Found %d items", items.size()));
+		if (items.isEmpty()) {
+			return;
+		}
 		driver.get("https://metjm.net/csgo/");
 		for (Item i : items) {
 			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/input")).sendKeys(i.getLink());
@@ -116,10 +119,12 @@ public abstract class CountLimitedHarvester extends Harvester {
 	}
 
 	private void wait(List<Item> items) {
-		String waitMsg = String.format("Waitig %dms for metjm...", wait);
-
-		while (driver.findElements(By.xpath("//div[@class='openImageButton' and @style]")).size() != items.size()) {
+		int count;
+		int size = items.size();
+		while ((count = driver.findElements(By.xpath("//div[@class='openImageButton' and @style]")).size()
+				+ driver.findElements(By.xpath("//span[@id='patternIndexS']/text()[.='0']")).size()) != size) {
 			try {
+				String waitMsg = String.format("Waitig %dms for metjm (%d/%d) ...", wait, count, size);
 				logger.info(waitMsg);
 				Thread.sleep(wait);
 			} catch (InterruptedException e) {
@@ -145,6 +150,14 @@ public abstract class CountLimitedHarvester extends Harvester {
 			logger.info(String.format("Waiting %dms for element %s", 100, by));
 		}
 		driver.findElement(by).click();
+	}
+
+	protected void clickIfExists(By by) {
+		try {
+			driver.findElement(by).click();
+		} catch (Exception e) {
+			logger.info(String.format("Could not find %s, skipping...", by));
+		}
 	}
 
 	protected void steamLogin() throws IOException, FileNotFoundException {
