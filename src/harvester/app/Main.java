@@ -18,7 +18,9 @@ import harvester.app.harvesters.CSHarvester;
 import harvester.app.harvesters.Harvester;
 import harvester.app.harvesters.LoungeHarvester;
 import harvester.app.harvesters.SJHarvester;
+import harvester.app.harvesters.STHarvester;
 import harvester.app.harvesters.SteamMarketHarvester;
+import harvester.app.harvesters.TSHarvester;
 import harvester.app.harvesters.TradeOfferHarvester;
 
 public class Main {
@@ -83,6 +85,10 @@ public class Main {
 				return new CMHarvester(argumentMap);
 			case "cs":
 				return new CSHarvester(argumentMap);
+			case "ts":
+				return new TSHarvester(argumentMap);
+			case "st":
+				return new STHarvester(argumentMap);
 			case "lounge":
 				return new LoungeHarvester(argumentMap);
 			default:

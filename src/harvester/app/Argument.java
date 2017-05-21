@@ -13,6 +13,7 @@ public enum Argument {
 	LOGIN("login", true),
 	MAX_PRICE("max"),
 	LIMIT("limit"),
+	LITE("lite", true),
 	START("start"),
 	BROWSER("browser.type"),
 	WAIT("page.wait"),

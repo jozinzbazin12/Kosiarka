@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -41,6 +42,10 @@ public class SJHarvester extends MetjmHarvester {
 		WebElement search = driver.findElement(By.id("botSearch"));
 		search.sendKeys(args.get(Argument.ITEM));
 
+		JavascriptExecutor js = (JavascriptExecutor) driver;
+		js.executeScript(
+				"Array.from(document.getElementsByClassName('inventory-search')).forEach(function(i){i.classList.remove('search-open');});");
+		Thread.sleep(100);
 		String waitMsg = String.format("Waitig %dms for items", wait);
 		driver.findElement(By.xpath("//img[@class='refresh ng-scope']")).click();
 		while (driver.findElement(By.xpath("//img[@class='refresh ng-scope']")).getAttribute("ng-click") == null) {

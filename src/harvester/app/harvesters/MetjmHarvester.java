@@ -28,11 +28,13 @@ public abstract class MetjmHarvester extends Harvester {
 	protected int pos = 0;
 	protected int wait = 1000;
 	protected double price = Double.MAX_VALUE;
+	private boolean lite;
 
 	protected static final String SESSION_DAT = "session.dat";
 
 	public MetjmHarvester(Map<Argument, String> argumentMap, String url) {
 		super(argumentMap, url);
+		lite = argumentMap.containsKey(Argument.LITE);
 	}
 
 	protected void setLimit(String value) {
@@ -77,11 +79,11 @@ public abstract class MetjmHarvester extends Harvester {
 		return pos > limit;
 	}
 
-	private void doScreens(List<Item> items) throws InterruptedException {
+	private boolean doScreens(List<Item> items) throws InterruptedException {
 		logger.debug(items);
 		logger.info(String.format("Found %d items", items.size()));
 		if (items.isEmpty()) {
-			return;
+			return false;
 		}
 		driver.get("https://metjm.net/csgo/");
 		for (Item i : items) {
@@ -89,10 +91,22 @@ public abstract class MetjmHarvester extends Harvester {
 			Thread.sleep(100);
 			driver.findElement(By.xpath("//div[@class='inspectLinkContainer']/div")).click();
 		}
+		return true;
 	}
 
 	protected String collectScreens(String pathToSave, List<Item> items, String harvesterName) throws InterruptedException {
-		doScreens(items);
+		boolean found = doScreens(items);
+		if (lite) {
+			logger.info("Press enter to finish...");
+			if (found) {
+				try {
+					System.in.read();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			return null;
+		}
 		wait(items);
 
 		List<WebElement> elements = driver.findElements(By.xpath("//div[@class='openImageButton' and @style]"));
@@ -109,7 +123,7 @@ public abstract class MetjmHarvester extends Harvester {
 				int urlpos = attribute.indexOf("background-image: url(\"");
 				int endurlpos = attribute.indexOf("\");");
 				String url = attribute.substring(urlpos + 31, endurlpos);
-				url = "http://" + url.replace("_t.jpg", ".jpg");
+				url = "https://" + url.replace("_t.jpg", ".jpg");
 				createSaveThread(url, path, i.getId() + ".jpg");
 			} catch (Exception e) {
 				logger.error("Error while downloading " + i.getId(), e);
@@ -122,7 +136,7 @@ public abstract class MetjmHarvester extends Harvester {
 		int count;
 		int size = items.size();
 		while ((count = driver.findElements(By.xpath("//div[@class='openImageButton' and @style]")).size()
-				+ driver.findElements(By.xpath("//span[@id='patternIndexS']/text()[.='0']")).size()) != size) {
+				+ driver.findElements(By.xpath("//span[@id='patternIndexS']/text()[.='0']")).size()) < size) {
 			try {
 				String waitMsg = String.format("Waitig %dms for metjm (%d/%d) ...", wait, count, size);
 				logger.info(waitMsg);

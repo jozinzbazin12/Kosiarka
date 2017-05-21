@@ -43,6 +43,8 @@ public class CSHarvester extends MetjmHarvester {
 		WebElement search = driver.findElement(By.id("searchBar"));
 		search.sendKeys(args.get(Argument.ITEM));
 
+		driver.findElements(By.className("dagger")).forEach((i) -> i.click());
+
 		String waitMsg = String.format("Waitig %dms for items", wait);
 		driver.findElement(By.xpath("//div[@id='column2']//a[@class='refreshButton']")).click();
 		while (driver.findElement(By.id("botTotalItems")).getText().isEmpty()) {
