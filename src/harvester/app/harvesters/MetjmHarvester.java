@@ -13,6 +13,7 @@ import java.util.Set;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.Wait;
@@ -125,6 +126,10 @@ public abstract class MetjmHarvester extends Harvester {
 				String url = attribute.substring(urlpos + 31, endurlpos);
 				url = "https://" + url.replace("_t.jpg", ".jpg");
 				createSaveThread(url, path, i.getId() + ".jpg");
+			} catch (StaleElementReferenceException e) {
+				logger.error("Error while downloading " + i.getId(), e);
+				driver.navigate().refresh();
+				elements = driver.findElements(By.xpath("//div[@class='openImageButton' and @style]"));
 			} catch (Exception e) {
 				logger.error("Error while downloading " + i.getId(), e);
 			}

@@ -21,7 +21,7 @@ public class STHarvester extends MetjmHarvester {
 
 	public STHarvester(Map<Argument, String> argumentMap) {
 		super(argumentMap, "https://skin.trade/");
-		logger.info("Using TS harvester");
+		logger.info("Using ST harvester");
 	}
 
 	@Override

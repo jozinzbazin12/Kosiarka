@@ -21,7 +21,7 @@ public class TSHarvester extends MetjmHarvester {
 
 	public TSHarvester(Map<Argument, String> argumentMap) {
 		super(argumentMap, "http://www.trade-skins.com/");
-		logger.info("Using ST harvester");
+		logger.info("Using TS harvester");
 	}
 
 	@Override
@@ -54,7 +54,9 @@ public class TSHarvester extends MetjmHarvester {
 		driver.findElements(By.className("dagger")).forEach((i) -> i.click());
 		List<WebElement> items = driver.findElements(
 				By.xpath("//div[@class='offer_container_inventory_steam']//div[contains(@class, 'offer_container_invertory')]"));
-		List<Item> urls = items.stream().map(i -> new Item(String.valueOf(System.currentTimeMillis()), i.getAttribute("inspect")))
+		List<Item> urls = items.stream()
+				.map(i -> new Item(String.valueOf(System.currentTimeMillis()),
+						"steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20" + i.getAttribute("inspect")))
 				.filter(i -> i.getLink() != null).collect(Collectors.toList());
 		collectScreens(pathToSave, urls, "ts");
 	}
